@@ -10,6 +10,7 @@ char *argv[] = { "sh", 0 };
 int
 main(void)
 {
+  set_page_allocator(1);
   int pid, wpid;
 
   if(open("console", O_RDWR) < 0){
@@ -34,4 +35,5 @@ main(void)
     while((wpid=wait()) >= 0 && wpid != pid)
       printf(1, "zombie!\n");
   }
+  exit();
 }

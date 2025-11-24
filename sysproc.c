@@ -105,13 +105,8 @@ int sys_set_page_allocator(void)
     if(argint(0,&page_allocator_type) < 0){
         return -1;
     }
-    // please remove the following 
-    // when you start implementing your page allocator
-    if (page_allocator_type == 1)
-    {
-        cprintf("Your lazy allocator has not been implemented!\n");
-	return -1;
-    }
+  
+    
     return 0;
 }
 

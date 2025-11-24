@@ -8,6 +8,14 @@
 #include "traps.h"
 #include "spinlock.h"
 
+extern int page_allocator_type;   // from proc.c
+
+#define DEFAULT 0
+#define LAZY 1
+
+int mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);  
+
+
 // Interrupt descriptor table (shared by all CPUs).
 struct gatedesc idt[256];
 extern uint vectors[];  // in vectors.S: array of 256 entry pointers
@@ -36,6 +44,7 @@ idtinit(void)
 void
 trap(struct trapframe *tf)
 {
+   uint faulting_va = 0;
   if(tf->trapno == T_SYSCALL){
     if(proc->killed)
       exit();
@@ -48,11 +57,31 @@ trap(struct trapframe *tf)
  // CS 3320 project 2
  // You might need to change the folloiwng default page fault handling
  // for your project 2
- if(tf->trapno == T_PGFLT){                 // CS 3320 project 2
-    uint faulting_va;                       // CS 3320 project 2
-    faulting_va = rcr2();                   // CS 3320 project 2
-    cprintf("Unhandled page fault for va:0x%x!\n", faulting_va);     // CS 3320 project 2
- }
+ if(tf->trapno == T_PGFLT){
+    faulting_va = rcr2(); // get faulting address
+
+    if(page_allocator_type == LAZY){
+      char *mem;
+      if((mem = kalloc()) == 0){
+        cprintf("LAZY allocator: out of memory!\n");
+        proc->killed = 1;
+        return;
+      }
+      memset(mem, 0, PGSIZE);
+      if(mappages(proc->pgdir, (void*)PGROUNDDOWN(faulting_va), PGSIZE, V2P(mem), PTE_W|PTE_U) < 0){
+        cprintf("LAZY allocator: mappages failed!\n");
+        kfree(mem);
+        proc->killed = 1;
+        return;
+      }
+      return; // page mapped successfully
+    }
+    // Fault outside heap
+    cprintf("Unhandled page fault at va 0x%x\n", faulting_va);
+    proc->killed = 1;
+    return;
+}
+
 
 
   switch(tf->trapno){
